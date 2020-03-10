@@ -68,8 +68,7 @@ public class TestFluxController {
 
             @DeleteMapping("/{id}")
             public Mono<String> deleteEmployee(@PathVariable int id){
-              return employeeDao.findById(id)
-                        .map(existingEmployee->employeeDao.delete(existingEmployee))
+              return employeeDao.deleteById(id)
                         .then(Mono.just("successfully deleted"+id))
                         .defaultIfEmpty("no employee availble for this id");      
                      }  
