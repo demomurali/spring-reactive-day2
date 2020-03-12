@@ -31,7 +31,7 @@ public class ApplicationTestRunner implements ApplicationRunner {
                                 .name("suresh kumar") 
                                 .department("department") 
                                 .build();
-              Flux<Employee> employeeFlux=Flux.just(ramesh,suresh);
+        Flux<Employee> employeeFlux=Flux.just(ramesh,suresh);
                       employeeFlux.flatMap(employee->employeeDao.save(employee))
                             .subscribe(employee1->System.out.println("employee name"+employee1.getName()));
         }

@@ -9,6 +9,7 @@ import com.example.springReactive.model.Employee;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.ExistingWebApplicationScopes;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import reactor.core.publisher.Flux;
@@ -36,25 +38,56 @@ public class TestFluxController {
     private EmployeeDao employeeDao;
 
     @GetMapping("/{id}")
-    public Mono<Employee> sayHello(@PathVariable int id){
-         return employeeDao.findById(id);
+    public Mono<ResponseEntity> sayHello(@PathVariable int id){
+         return employeeDao.findById(id)
+                          .map(employee->{
+                                  int a=5/0;
+                                 return employee;
+                              })
+               .map(employee->getSuccessMessage(employee))
+               .onErrorResume(Exception.class,error->getErrorMessage(error));
         }   
-        
+
+       
+
+      private Mono<ResponseEntity> getErrorMessage(Throwable error){
+         System.out.println(error);
+         return Mono.just(ResponseEntity.status(HttpStatus.CONFLICT).body(error.getMessage()));
+      }  
+
+      private ResponseEntity getErrorMessage(){
+         return ResponseEntity.status(HttpStatus.CONFLICT).body("Database Issue");
+      } 
+      
+      private ResponseEntity getSuccessMessage(Employee employee){
+         System.out.println(employee);
+         return ResponseEntity.ok().body(employee);
+      }
+
       @GetMapping
-       public Flux<Employee> sayHello(){
-             return employeeDao.findAll();
+       public Flux sayHello() {
+             return employeeDao.findAll()
+                  .map(employee->{
+                           int a=5/0;
+                           return getSuccessMessage(employee);
+                  })
+                  //.doOnError(error->System.out.println(error))
+                  .onErrorReturn(Exception.class, getErrorMessage());
+
+                   //.onErrorMap((exception)->new Exception(exception));
       }     
 
       @PostMapping
-      public Mono<String> insertEmployee(@RequestBody Employee employee){
+      public Mono<ResponseEntity<String>> insertEmployee(@RequestBody Employee employee){
            return Mono.just(employee)
                .flatMap(employee1->employeeDao.save(employee))
-               .map(employee1->"employee inserted");   
+               .map(employee1->ResponseEntity.status(HttpStatus.OK).body("employee inserted"))
+               .doOnError(error->System.out.println(error));
       }
 
 
       @PatchMapping("/{id}")
-      public Mono<String> updateEmployee(@PathVariable int id,
+      public Mono<ResponseEntity<String>> updateEmployee(@PathVariable int id,
                @RequestBody Employee employee){
         return employeeDao.findById(id)
                   .flatMap(existingEmployee->{
@@ -62,16 +95,18 @@ public class TestFluxController {
                      existingEmployee.setSalary(employee.getSalary());
                      existingEmployee.setDepartment(employee.getDepartment());
                      return employeeDao.save(existingEmployee);
-                  }).map(employee1->"successfully updated"+employee.getId())
-                    .defaultIfEmpty("no employee availble for this id");      
+                  })
+                  .map(employee1->ResponseEntity.status(HttpStatus.OK).body("successfully updated"+employee.getId())) 
+                    .defaultIfEmpty(ResponseEntity.status(HttpStatus.OK).body("no employee availble for this id"));      
             }
 
             @DeleteMapping("/{id}")
-            public Mono<String> deleteEmployee(@PathVariable int id){
+            public Mono<ResponseEntity<String>> deleteEmployee(@PathVariable int id){
               return employeeDao.deleteById(id)
-                        .then(Mono.just("successfully deleted"+id))
-                        .defaultIfEmpty("no employee availble for this id");      
+                        .then(Mono.just(ResponseEntity.status(HttpStatus.OK).body("successfully delted")))
+                        .defaultIfEmpty(ResponseEntity.status(HttpStatus.OK).body("no employee availble for this id"));      
                      }  
+
 
 
 
