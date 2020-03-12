@@ -42,6 +42,7 @@ public class TestFluxController {
          return employeeDao.findById(id)
                           .map(employee->{
                                   int a=5/0;
+                                  System.out.println("error");
                                  return employee;
                               })
                .map(employee->getSuccessMessage(employee))
@@ -50,12 +51,12 @@ public class TestFluxController {
 
        
 
-      private Mono<ResponseEntity> getErrorMessage(Throwable error){
+      private Mono<ResponseEntity<String>> getErrorMessage(Throwable error){
          System.out.println(error);
          return Mono.just(ResponseEntity.status(HttpStatus.CONFLICT).body(error.getMessage()));
       }  
 
-      private ResponseEntity getErrorMessage(){
+      private ResponseEntity<String> getErrorMessage(){
          return ResponseEntity.status(HttpStatus.CONFLICT).body("Database Issue");
       } 
       
@@ -66,14 +67,8 @@ public class TestFluxController {
 
       @GetMapping
        public Flux sayHello() {
-             return employeeDao.findAll()
-                  .map(employee->{
-                           int a=5/0;
-                           return getSuccessMessage(employee);
-                  })
-                  //.doOnError(error->System.out.println(error))
-                  .onErrorReturn(Exception.class, getErrorMessage());
-
+             return employeeDao.findAll();
+                   //.doOnError(error->System.out.println(error))
                    //.onErrorMap((exception)->new Exception(exception));
       }     
 
@@ -82,7 +77,9 @@ public class TestFluxController {
            return Mono.just(employee)
                .flatMap(employee1->employeeDao.save(employee))
                .map(employee1->ResponseEntity.status(HttpStatus.OK).body("employee inserted"))
-               .doOnError(error->System.out.println(error));
+               .doOnError(error->System.out.println(error))
+               .onErrorResume(error->getErrorMessage(error));
+
       }
 
 
@@ -97,7 +94,8 @@ public class TestFluxController {
                      return employeeDao.save(existingEmployee);
                   })
                   .map(employee1->ResponseEntity.status(HttpStatus.OK).body("successfully updated"+employee.getId())) 
-                    .defaultIfEmpty(ResponseEntity.status(HttpStatus.OK).body("no employee availble for this id"));      
+                  .onErrorResume(error->getErrorMessage(error))
+                  .defaultIfEmpty(ResponseEntity.status(HttpStatus.OK).body("no employee availble for this id"));      
             }
 
             @DeleteMapping("/{id}")
