@@ -34,22 +34,31 @@ import reactor.core.publisher.Mono;
 @RequestMapping("/flux")
 public class TestFluxController {
 
-    @Autowired
     private EmployeeDao employeeDao;
+
+    public TestFluxController(EmployeeDao employeeDao){
+         this.employeeDao=employeeDao;
+    }
 
     @GetMapping("/{id}")
     public Mono<ResponseEntity> sayHello(@PathVariable int id){
          return employeeDao.findById(id)
-                          .map(employee->{
-                                  int a=5/0;
+                        .map(employee->{
+                                  int a=5/1;
                                   System.out.println("error");
                                  return employee;
                               })
                .map(employee->getSuccessMessage(employee))
-               .onErrorResume(Exception.class,error->getErrorMessage(error));
-        }   
+               .onErrorResume(Exception.class,error->getErrorMessage(error))
+               .defaultIfEmpty(ResponseEntity.status(HttpStatus.NOT_FOUND).body("no employee availble for this id"));      
 
-       
+            }   
+
+      @GetMapping(value = "/stream/values", produces = MediaType.APPLICATION_STREAM_JSON_VALUE)
+            public Flux<Employee> getEmployeeEvents() {
+                return employeeDao.findAll();
+            }      
+      
 
       private Mono<ResponseEntity<String>> getErrorMessage(Throwable error){
          System.out.println(error);
@@ -66,7 +75,7 @@ public class TestFluxController {
       }
 
       @GetMapping
-       public Flux sayHello() {
+       public Flux<Employee> sayHello() {
              return employeeDao.findAll();
                    //.doOnError(error->System.out.println(error))
                    //.onErrorMap((exception)->new Exception(exception));
@@ -95,7 +104,7 @@ public class TestFluxController {
                   })
                   .map(employee1->ResponseEntity.status(HttpStatus.OK).body("successfully updated"+employee.getId())) 
                   .onErrorResume(error->getErrorMessage(error))
-                  .defaultIfEmpty(ResponseEntity.status(HttpStatus.OK).body("no employee availble for this id"));      
+                  .defaultIfEmpty(ResponseEntity.status(HttpStatus.NOT_FOUND).body("no employee availble for this id"));      
             }
 
             @DeleteMapping("/{id}")
